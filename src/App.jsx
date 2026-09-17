@@ -169,12 +169,12 @@ function RotatingLine({ lang, reducedMotion }) {
       aria-live="polite"
       className="text-base font-semibold mb-5"
       style={{
-        color: "#BFEAE0",
+        color: "#F2FBF8",
         fontFamily: FONT_STACK,
         opacity: reducedMotion ? 1 : fade ? 1 : 0,
         transition: reducedMotion ? "none" : "opacity 0.26s ease",
         minHeight: 24,
-        textShadow: "0 1px 10px rgba(0,0,0,0.3)",
+        textShadow: "0 1px 3px rgba(12,8,28,0.85), 0 2px 14px rgba(12,8,28,0.6)",
       }}
     >
       {line[lang] || line.en}
@@ -947,66 +947,69 @@ function HeroScene({ reducedMotion }) {
     }
   }, [paused]);
 
-  const CX = 610;
-  const CY = 215;
-  const R = 150;
+  // Chakra lives in its own square viewBox so it can never be cropped by the
+  // hero's aspect ratio. 200,200 centre with R=150 plus ripples reaching 175
+  // leaves a 25-unit margin inside a 400-wide box; the lockup sits below it.
+  const CX = 200;
+  const CY = 200;
+  const R = 140;
   const SPOKES = 24; // accurate Ashoka Chakra spoke count, 15° apart
 
   return (
-    <div className="relative w-full h-full">
-      <svg
-        ref={svgRef}
-        viewBox="0 0 800 450"
-        preserveAspectRatio="xMidYMid slice"
-        className="w-full h-full"
-        role="img"
-        aria-label="A faded, large Ashoka Chakra watermark turning very slowly, with soft rings of light breathing outward behind it, and the words Ministry of Social Justice and Empowerment, National Helpline Against Atrocities in quiet faded type beneath it."
+    <div className="relative w-full h-full overflow-hidden">
+      {/* warm pastel wash as a CSS gradient — fills any aspect ratio, never crops */}
+      <div
+        aria-hidden="true"
+        className="absolute inset-0"
+        style={{ background: `linear-gradient(180deg, ${T.lavender} 0%, #F3D8C8 55%, ${T.amberBg} 100%)` }}
+      />
+
+      {/* Chakra watermark, right-hand side. Sized generously and allowed to bleed
+          past the right edge — the hero's overflow-hidden clips it, so it can
+          never produce a horizontal scrollbar. `meet` scaling keeps the whole
+          circle inside the hero vertically at every width. */}
+      <div
+        aria-hidden="true"
+        className="hidden md:block absolute pointer-events-none"
+        style={{ top: "50%", right: "-10%", transform: "translateY(-50%)", width: "min(60%, 660px)", height: "min(125%, 660px)" }}
       >
-        <defs>
-          <linearGradient id="raahatSky" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={T.lavender} />
-            <stop offset="55%" stopColor="#F3D8C8" />
-            <stop offset="100%" stopColor={T.amberBg} />
-          </linearGradient>
-        </defs>
+        <svg
+          ref={svgRef}
+          viewBox="0 0 400 400"
+          preserveAspectRatio="xMidYMid meet"
+          className="w-full h-full"
+          role="img"
+          aria-label="A faded, large Ashoka Chakra watermark turning very slowly, with soft rings of light breathing outward behind it."
+        >
+          {/* concentric ripples of soft light, breathing outward behind the chakra */}
+          <g fill="none" stroke="#FFD27A" strokeWidth="1.5">
+            {[0, 1, 2].map((i) => (
+              <circle key={i} cx={CX} cy={CY} r="40" opacity="0">
+                <animate attributeName="r" values="28;172" dur="9s" begin={`${i * 3}s`} repeatCount="indefinite" />
+                <animate attributeName="opacity" values="0.55;0" dur="9s" begin={`${i * 3}s`} repeatCount="indefinite" />
+              </circle>
+            ))}
+          </g>
 
-        {/* sky — a still, warm pastel wash; almost no motion in this scene */}
-        <rect x="0" y="0" width="800" height="450" fill="url(#raahatSky)" />
-
-        {/* concentric ripples of soft light, breathing outward behind the chakra */}
-        <g fill="none" stroke="#FFD27A" strokeWidth="1.5">
-          {[0, 1, 2].map((i) => (
-            <circle key={i} cx={CX} cy={CY} r="40" opacity="0">
-              <animate attributeName="r" values="30;175" dur="9s" begin={`${i * 3}s`} repeatCount="indefinite" />
-              <animate attributeName="opacity" values="0.55;0" dur="9s" begin={`${i * 3}s`} repeatCount="indefinite" />
-            </circle>
-          ))}
-        </g>
-
-        {/* the Ashoka Chakra — 24 spokes, low opacity, turning almost imperceptibly slowly */}
-        <g opacity="0.16" stroke={T.indigo} fill="none">
-          <animateTransform attributeName="transform" type="rotate" from={`0 ${CX} ${CY}`} to={`360 ${CX} ${CY}`} dur="240s" repeatCount="indefinite" />
-          <circle cx={CX} cy={CY} r={R} strokeWidth="2.5" />
-          <circle cx={CX} cy={CY} r={R - 14} strokeWidth="1" opacity="0.6" />
-          {Array.from({ length: SPOKES }).map((_, i) => {
-            const angle = (i * (360 / SPOKES) * Math.PI) / 180;
-            const x1 = CX + Math.cos(angle) * 17;
-            const y1 = CY + Math.sin(angle) * 17;
-            const x2 = CX + Math.cos(angle) * (R - 8);
-            const y2 = CY + Math.sin(angle) * (R - 8);
-            return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} strokeWidth="2" />;
-          })}
-          <circle cx={CX} cy={CY} r="11" fill={T.indigo} stroke="none" />
-        </g>
-        {/* a small, sparing warm accent at the hub — the only amber in this scene */}
-        <circle cx={CX} cy={CY} r="4.5" fill={T.amber} opacity="0.5" />
-
-        {/* quiet watermark lockup — faded, never competing with the headline */}
-        <g fill={T.white} opacity="0.4" style={{ fontFamily: FONT_STACK }} textAnchor="middle">
-          <text x={CX} y="398" fontSize="12" fontWeight="700" letterSpacing="0.14em">MINISTRY OF SOCIAL JUSTICE &amp; EMPOWERMENT</text>
-          <text x={CX} y="418" fontSize="12" fontWeight="700" letterSpacing="0.14em">NATIONAL HELPLINE AGAINST ATROCITIES</text>
-        </g>
-      </svg>
+          {/* the Ashoka Chakra — 24 spokes, low opacity, turning almost imperceptibly slowly */}
+          <g opacity="0.16" stroke={T.indigo} fill="none">
+            <animateTransform attributeName="transform" type="rotate" from={`0 ${CX} ${CY}`} to={`360 ${CX} ${CY}`} dur="240s" repeatCount="indefinite" />
+            <circle cx={CX} cy={CY} r={R} strokeWidth="2.5" />
+            <circle cx={CX} cy={CY} r={R - 13} strokeWidth="1" opacity="0.6" />
+            {Array.from({ length: SPOKES }).map((_, i) => {
+              const angle = (i * (360 / SPOKES) * Math.PI) / 180;
+              const x1 = CX + Math.cos(angle) * 16;
+              const y1 = CY + Math.sin(angle) * 16;
+              const x2 = CX + Math.cos(angle) * (R - 8);
+              const y2 = CY + Math.sin(angle) * (R - 8);
+              return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} strokeWidth="2" />;
+            })}
+            <circle cx={CX} cy={CY} r="10" fill={T.indigo} stroke="none" />
+          </g>
+          {/* a small, sparing warm accent at the hub — the only amber in this scene */}
+          <circle cx={CX} cy={CY} r="4.5" fill={T.amber} opacity="0.5" />
+        </svg>
+      </div>
 
       <button
         onClick={() => setPaused((p) => !p)}
@@ -1347,41 +1350,83 @@ function useSpeechRecognition(uiLang) {
 /* ---------------------------------------------------------------------- */
 /* Landing page                                                           */
 /* ---------------------------------------------------------------------- */
-function NavBar({ t, onOfficerLogin, onGetHelp, stickyTop = 0 }) {
+function NavBar({ t, onOfficerLogin, onUserLogin, onGetHelp, stickyTop = 0 }) {
   const [open, setOpen] = useState(false);
+  const links = [t("howItWorks"), t("channels"), t("forOfficials"), t("architecture")];
+
+  /* One horizontal row from md (768px) up: logo | links | User + Officer Login.
+     Nothing is ever hidden behind the hamburger at desktop widths — when space
+     is tight the link type and the gaps shrink instead, scaling back up at lg
+     and xl. Only genuinely narrow phone widths fall back to the stacked menu. */
   return (
     <nav className="sticky z-30 bg-white/95 backdrop-blur" style={{ top: stickyTop, borderBottom: `1px solid ${T.line}` }}>
-      <div className="max-w-7xl mx-auto flex items-center justify-between px-4 sm:px-6 py-3">
-        <div className="flex items-center gap-2">
-          <span className="rounded-xl p-2" style={{ backgroundColor: T.lavender }}>
-            <Landmark size={22} color={T.indigo} />
+      <div className="max-w-7xl mx-auto flex flex-nowrap items-center justify-between gap-3 lg:gap-6 px-4 sm:px-6 py-3">
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="rounded-xl p-1.5 lg:p-2" style={{ backgroundColor: T.lavender }}>
+            <Landmark size={20} color={T.indigo} />
           </span>
-          <span className="text-xl font-bold" style={{ color: T.indigo, fontFamily: FONT_STACK }}>RAAHAT</span>
+          <span className="text-lg lg:text-xl font-bold" style={{ color: T.indigo, fontFamily: FONT_STACK }}>RAAHAT</span>
         </div>
-        <div className="hidden md:flex items-center gap-7" style={{ fontFamily: FONT_STACK }}>
-          {[t("howItWorks"), t("channels"), t("forOfficials"), t("architecture")].map((label) => (
-            <a key={label} href="#" onClick={(e) => e.preventDefault()} className="font-medium" style={{ color: T.indigo }}>
+
+        <div className="hidden md:flex items-center gap-3 lg:gap-5 xl:gap-7 min-w-0" style={{ fontFamily: FONT_STACK }}>
+          {links.map((label) => (
+            <a
+              key={label}
+              href="#"
+              onClick={(e) => e.preventDefault()}
+              className="font-medium whitespace-nowrap text-[13px] lg:text-[15px]"
+              style={{ color: T.indigo }}
+            >
               {label}
             </a>
           ))}
         </div>
-        <div className="hidden md:flex items-center gap-3">
-          <button onClick={onOfficerLogin} className="rounded-xl px-4 py-2.5 font-semibold" style={{ backgroundColor: T.indigo, color: T.white, fontFamily: FONT_STACK }}>
+
+        {/* always on screen at desktop widths; compact and sized to their text */}
+        <div className="hidden md:flex items-center gap-2 shrink-0">
+          {/* secondary: outlined, so Officer Login stays the only filled button */}
+          <button
+            onClick={onUserLogin}
+            className="inline-flex items-center rounded-xl px-2.5 lg:px-4 py-2 lg:py-2.5 font-semibold whitespace-nowrap text-sm lg:text-base"
+            style={{ backgroundColor: "transparent", color: T.indigo, border: `2px solid ${T.indigo}`, fontFamily: FONT_STACK }}
+          >
+            User Login
+          </button>
+          <button
+            onClick={onOfficerLogin}
+            className="inline-flex items-center rounded-xl px-2.5 lg:px-4 py-2 lg:py-2.5 font-semibold whitespace-nowrap text-sm lg:text-base"
+            style={{ backgroundColor: T.indigo, color: T.white, fontFamily: FONT_STACK }}
+          >
             {t("officerLogin")}
           </button>
         </div>
-        <button className="md:hidden rounded-lg p-2" style={{ backgroundColor: T.lavender }} onClick={() => setOpen((o) => !o)} aria-label="Menu">
+
+        <button className="md:hidden rounded-lg p-2 shrink-0" style={{ backgroundColor: T.lavender }} onClick={() => setOpen((o) => !o)} aria-label="Menu">
           {open ? <ChevronUp size={20} color={T.indigo} /> : <ChevronDown size={20} color={T.indigo} />}
         </button>
       </div>
+
       {open && (
-        <div className="md:hidden px-4 pb-4 flex flex-col gap-3" style={{ fontFamily: FONT_STACK }}>
-          {[t("howItWorks"), t("channels"), t("forOfficials"), t("architecture")].map((label) => (
+        <div className="md:hidden px-4 pb-4 flex flex-col items-start gap-3" style={{ fontFamily: FONT_STACK }}>
+          {links.map((label) => (
             <a key={label} href="#" onClick={(e) => e.preventDefault()} className="font-medium" style={{ color: T.indigo }}>{label}</a>
           ))}
-          <button onClick={onOfficerLogin} className="rounded-xl px-4 py-3 font-semibold text-left" style={{ backgroundColor: T.indigo, color: T.white }}>
-            {t("officerLogin")}
-          </button>
+          <div className="flex flex-wrap items-center gap-2 pt-1">
+            <button
+              onClick={onUserLogin}
+              className="inline-flex items-center rounded-xl px-4 py-2.5 font-semibold whitespace-nowrap"
+              style={{ backgroundColor: "transparent", color: T.indigo, border: `2px solid ${T.indigo}` }}
+            >
+              User Login
+            </button>
+            <button
+              onClick={onOfficerLogin}
+              className="inline-flex items-center rounded-xl px-4 py-2.5 font-semibold whitespace-nowrap"
+              style={{ backgroundColor: T.indigo, color: T.white }}
+            >
+              {t("officerLogin")}
+            </button>
+          </div>
         </div>
       )}
     </nav>
@@ -1705,7 +1750,7 @@ function LandingFooter({ onOfficerLogin }) {
   );
 }
 
-function Landing({ t, lang, setLang, reducedMotion, onGetHelp, onTrack, onOfficerLogin }) {
+function Landing({ t, lang, setLang, reducedMotion, onGetHelp, onTrack, onOfficerLogin, onUserLogin }) {
   const [govRef, govHeight] = useMeasuredHeight();
   const [lowBandwidth, setLowBandwidth] = useState(false);
   const effectiveReducedMotion = reducedMotion || lowBandwidth;
@@ -1715,7 +1760,7 @@ function Landing({ t, lang, setLang, reducedMotion, onGetHelp, onTrack, onOffice
         <div ref={govRef} className="sticky top-0 z-50">
           <GovStrip t={t} lang={lang} setLang={setLang} lowBandwidth={lowBandwidth} setLowBandwidth={setLowBandwidth} />
         </div>
-        <NavBar t={t} onOfficerLogin={onOfficerLogin} onGetHelp={onGetHelp} stickyTop={govHeight} />
+        <NavBar t={t} onOfficerLogin={onOfficerLogin} onUserLogin={onUserLogin} onGetHelp={onGetHelp} stickyTop={govHeight} />
         {lowBandwidth && (
           <div className="text-center text-sm font-semibold py-2 px-4" style={{ backgroundColor: T.amberBg, color: T.amber, fontFamily: FONT_STACK }}>
             Low bandwidth mode is on — animation is paused and text is larger, so RAAHAT stays usable on slow rural connections.
@@ -2510,6 +2555,134 @@ function TrackingScreen({ t, cases }) {
   );
 }
 
+/* Screen: citizen sign-in (existing case holders only) --------------------- */
+/* Deliberately NOT in the hero: getting help never requires an account, so   */
+/* this lives only in the nav bar and says so plainly on arrival.            */
+function CitizenSignIn({ t, onSignedIn, onGetHelp }) {
+  const [step, setStep] = useState("mobile");
+  const [mobile, setMobile] = useState("");
+  const [otp, setOtp] = useState("");
+  const mobileOk = mobile.replace(/\D/g, "").length >= 10;
+  const otpOk = /^\d{4}$/.test(otp.trim()); // any 4 digits are accepted in this demo
+
+  return (
+    <div>
+      <h1 className="text-2xl font-bold mb-2" style={{ color: T.indigo, fontFamily: FONT_STACK }}>Sign in to your case</h1>
+      <p className="mb-4 text-sm" style={{ color: "#5B5482", fontFamily: FONT_STACK }}>
+        See where your case stands, finish verification, or add to your statement.
+      </p>
+
+      {/* anyone who lands here by mistake should not feel gated */}
+      <div className="rounded-2xl p-4 mb-6" style={{ backgroundColor: T.tealBg }}>
+        <p className="text-sm font-semibold mb-2" style={{ color: T.indigo, fontFamily: FONT_STACK }}>
+          You don't need an account to get help — sign in only if you already have a case.
+        </p>
+        <button onClick={onGetHelp} className="inline-flex items-center gap-1 text-sm font-bold underline" style={{ color: T.teal, fontFamily: FONT_STACK }}>
+          Get help now <ChevronRight size={16} />
+        </button>
+      </div>
+
+      {step === "mobile" ? (
+        <div className="flex flex-col gap-3">
+          <label className="text-sm font-semibold" style={{ color: T.indigo, fontFamily: FONT_STACK }}>Registered mobile number</label>
+          <input
+            value={mobile}
+            onChange={(e) => setMobile(e.target.value)}
+            inputMode="numeric"
+            placeholder="10-digit mobile number"
+            className="rounded-xl p-4"
+            style={{ border: `1px solid ${T.line}`, fontFamily: FONT_STACK }}
+          />
+          {/* API: POST /v1/otp/send -> { otpId, expiresInSec } */}
+          <PrimaryButton full icon={ArrowRight} onClick={() => setStep("otp")} disabled={!mobileOk}>Send OTP</PrimaryButton>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3">
+          <label className="text-sm font-semibold" style={{ color: T.indigo, fontFamily: FONT_STACK }}>Enter the 4-digit OTP sent to {mobile}</label>
+          <input
+            value={otp}
+            onChange={(e) => setOtp(e.target.value)}
+            inputMode="numeric"
+            maxLength={4}
+            placeholder="4-digit OTP"
+            className="rounded-xl p-4 tracking-[0.5em] text-center text-xl"
+            style={{ border: `1px solid ${T.line}`, fontFamily: MONO_STACK }}
+          />
+          {/* API: POST /v1/otp/verify -> { verified, token, caseIds: [...] } */}
+          <PrimaryButton full icon={ArrowRight} onClick={() => onSignedIn(mobile)} disabled={!otpOk}>Verify & continue</PrimaryButton>
+          <button onClick={() => setStep("mobile")} className="text-sm underline self-start" style={{ color: T.teal, fontFamily: FONT_STACK }}>Change number</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* Screen: signed-in citizen case dashboard -------------------------------- */
+function CitizenCaseDashboard({ t, caseData, onCompleteVerification, onAddToStatement, onSignOut }) {
+  const stages = ["Received", "Human Review", "Support Recommended", "Referral / Follow-up", "Resolved"];
+  const doneIdx = caseData ? caseData.timeline.filter((s) => s.done).length - 1 : 0;
+  const verificationPending = caseData?.verification !== "Verified";
+
+  if (!caseData) {
+    return (
+      <div>
+        <h1 className="text-2xl font-bold mb-2" style={{ color: T.indigo, fontFamily: FONT_STACK }}>No case found</h1>
+        <p className="text-sm" style={{ color: "#5B5482", fontFamily: FONT_STACK }}>We couldn't find a case linked to that number.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="flex items-start justify-between gap-3 mb-1">
+        <h1 className="text-2xl font-bold" style={{ color: T.indigo, fontFamily: FONT_STACK }}>Your case</h1>
+        <button onClick={onSignOut} className="text-sm underline shrink-0" style={{ color: T.teal, fontFamily: FONT_STACK }}>Sign out</button>
+      </div>
+      <p className="font-mono text-sm mb-6" style={{ color: "#8F88BB", fontFamily: MONO_STACK }}>{caseData.id}</p>
+
+      {/* API: GET /v1/case/{caseId}/status -> { status, timeline, verification } (citizen-facing; never includes SVI score) */}
+      <div className="flex flex-wrap gap-2 mb-6">
+        <Chip tone="lavender" icon={ClipboardList}>Status: {caseData.status}</Chip>
+        <Chip tone={verificationPending ? "amber" : "green"} icon={verificationPending ? Info : CheckCircle2}>
+          Verification: {caseData.verification}
+        </Chip>
+      </div>
+
+      {verificationPending && (
+        <div className="rounded-2xl p-4 mb-6" style={{ backgroundColor: T.amberBg }}>
+          <p className="text-sm font-semibold mb-2" style={{ color: T.amber, fontFamily: FONT_STACK }}>
+            Your verification is still pending — completing it helps an officer act faster.
+          </p>
+          <button onClick={onCompleteVerification} className="inline-flex items-center gap-1 text-sm font-bold underline" style={{ color: T.indigo, fontFamily: FONT_STACK }}>
+            Complete verification <ChevronRight size={16} />
+          </button>
+        </div>
+      )}
+
+      <h2 className="font-bold mb-3" style={{ color: T.indigo, fontFamily: FONT_STACK }}>Case timeline</h2>
+      <p className="mb-4 text-sm" style={{ color: "#5B5482", fontFamily: FONT_STACK }}>We'll never show risk scores or officer notes here — only where your case stands.</p>
+      <div className="flex flex-col gap-0 mb-6">
+        {stages.map((stage, i) => (
+          <div key={stage} className="flex gap-4">
+            <div className="flex flex-col items-center">
+              <span className="rounded-full flex items-center justify-center" style={{ width: 32, height: 32, backgroundColor: i <= doneIdx ? T.teal : T.lavender }}>
+                {i <= doneIdx ? <Check size={16} color={T.white} /> : <span style={{ color: T.indigo, fontSize: 12 }}>{i + 1}</span>}
+              </span>
+              {i < stages.length - 1 && <span style={{ width: 2, height: 36, backgroundColor: i < doneIdx ? T.teal : T.line }} />}
+            </div>
+            <div className="pb-8">
+              <p className="font-bold" style={{ color: i <= doneIdx ? T.indigo : "#8F88BB", fontFamily: FONT_STACK }}>{stage}</p>
+              {i <= doneIdx && <p className="text-xs" style={{ color: "#8F88BB", fontFamily: FONT_STACK }}>Updated</p>}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <PrimaryButton full icon={PlusCircle} variant="outline" onClick={onAddToStatement}>Add to my statement</PrimaryButton>
+    </div>
+  );
+}
+
 /* Screen: verification (post-support) ------------------------------------- */
 function VerificationScreen({ t, verification, setVerification }) {
   const [name, setName] = useState("");
@@ -3129,6 +3302,8 @@ const SCREENS = {
   QUEUED_OFFLINE: "QUEUED_OFFLINE",
   TRACKING: "TRACKING",
   VERIFICATION: "VERIFICATION",
+  USER_LOGIN: "USER_LOGIN",
+  USER_DASHBOARD: "USER_DASHBOARD",
   ADMIN_LOGIN: "ADMIN_LOGIN",
   ADMIN_DASHBOARD: "ADMIN_DASHBOARD",
   ADMIN_CASE_DETAIL: "ADMIN_CASE_DETAIL",
@@ -3201,6 +3376,7 @@ export default function RAAHATApp() {
   const [urgentOpen, setUrgentOpen] = useState(false);
   const [lastCaseId, setLastCaseId] = useState(null);
   const [pickedRec, setPickedRec] = useState(null);
+  const [signedInMobile, setSignedInMobile] = useState(null);
 
   // connectivity (real navigator.onLine + a manual "simulate offline" toggle)
   const { isOffline, setForcedOffline } = useConnectivity();
@@ -3362,6 +3538,7 @@ export default function RAAHATApp() {
           onGetHelp={() => { resetCitizenIntake(); setScreen(SCREENS.CHOOSE); }}
           onTrack={() => setScreen(SCREENS.TRACKING)}
           onOfficerLogin={() => setScreen(SCREENS.ADMIN_LOGIN)}
+          onUserLogin={() => setScreen(SCREENS.USER_LOGIN)}
         />
         <UrgentHelpFAB t={t} onOpen={() => setUrgentOpen(true)} />
         <UrgentHelpSheet open={urgentOpen} onClose={() => setUrgentOpen(false)} t={t} district={location?.district} />
@@ -3538,6 +3715,31 @@ export default function RAAHATApp() {
     );
   } else if (screen === SCREENS.TRACKING) {
     body = <TrackingScreen t={t} cases={cases} />;
+  } else if (screen === SCREENS.USER_LOGIN) {
+    body = (
+      <CitizenSignIn
+        t={t}
+        onSignedIn={(mobile) => {
+          // A real build resolves the caller's case from the verified OTP token.
+          // Here we surface the citizen's own submission if they made one this
+          // session, else the most recent case, so the dashboard has something real.
+          setSignedInMobile(mobile);
+          setScreen(SCREENS.USER_DASHBOARD);
+        }}
+        onGetHelp={() => { resetCitizenIntake(); setScreen(SCREENS.CHOOSE); }}
+      />
+    );
+  } else if (screen === SCREENS.USER_DASHBOARD) {
+    const myCase = cases.find((c) => c.id === lastCaseId) || cases[0];
+    body = (
+      <CitizenCaseDashboard
+        t={t}
+        caseData={myCase}
+        onCompleteVerification={() => setScreen(SCREENS.VERIFICATION)}
+        onAddToStatement={() => { setScreen(SCREENS.CHOOSE); }}
+        onSignOut={() => { setSignedInMobile(null); goLanding(); }}
+      />
+    );
   } else if (screen === SCREENS.VERIFICATION) {
     body = <VerificationScreen t={t} verification={verification} setVerification={setVerification} />;
   }
