@@ -2,16 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Full-width layout.
-   Vite's React starter ships an index.css containing:
-
-     #root { max-width: 1280px; margin: 0 auto; padding: 2rem; text-align: center; }
-     body  { display: flex; place-items: center; min-width: 320px; }
-
-   Those two rules are what caused the white gutter down the right side (the
-   1280px cap plus 2rem padding) and the centred hero copy (the inherited
-   text-align). Replace the whole file with this one. */
-
 html,
 body,
 #root {
@@ -20,12 +10,11 @@ body,
   margin: 0;
   padding: 0;
   text-align: left;
+  border: none;
 }
 
 html,
 body {
-  /* stops any decorative bleed (e.g. the hero chakra) from creating a
-     horizontal scrollbar, without affecting vertical scrolling */
   overflow-x: hidden;
 }
 
