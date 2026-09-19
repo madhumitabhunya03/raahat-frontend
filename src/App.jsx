@@ -45,6 +45,43 @@ const FONT_STACK = '"Nunito Sans","Work Sans",-apple-system,BlinkMacSystemFont,"
 const MONO_STACK = '"IBM Plex Mono","SFMono-Regular",Consolas,monospace';
 
 const RM_QUERY = "(prefers-reduced-motion: reduce)";
+/* Vite's starter index.css ships `#root { max-width: 1280px; margin: 0 auto;   */
+/* padding: 2rem; text-align: center }` and `body { display: flex;             */
+/* place-items: center }`. That caps the app's width (the white gutter on the  */
+/* right) and centres all inherited text (the centred hero copy). This injects */
+/* a reset so the app is edge-to-edge and left-aligned regardless of what the  */
+/* host stylesheet says. Deleting those rules from index.css is the cleaner    */
+/* fix; this keeps the component correct on its own either way.               */
+const GLOBAL_LAYOUT_RESET = `
+  html, body, #root {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: 0;
+    text-align: left;
+    place-items: initial;
+  }
+  body, #root { display: block; min-height: 100%; }
+  html { overflow-x: hidden; }
+  body { overflow-x: hidden; }
+  *, *::before, *::after { box-sizing: border-box; }
+`;
+
+function useFullWidthLayout() {
+  useEffect(() => {
+    const id = "raahat-global-layout-reset";
+    if (document.getElementById(id)) return;
+    const style = document.createElement("style");
+    style.id = id;
+    style.textContent = GLOBAL_LAYOUT_RESET;
+    document.head.appendChild(style);
+    return () => {
+      const existing = document.getElementById(id);
+      if (existing) existing.remove();
+    };
+  }, []);
+}
+
 function usePrefersReducedMotion() {
   const [reduced, setReduced] = useState(false);
   useEffect(() => {
@@ -779,22 +816,32 @@ function GovStrip({ t, lang, setLang, lowBandwidth, setLowBandwidth }) {
     // the strip itself stays RAAHAT's own deep indigo; the thin blue line below is
     // the only nod to the official government colour — an accent, not the brand
     <div style={{ backgroundColor: T.indigo, color: T.white, fontFamily: FONT_STACK, borderBottom: `2px solid ${T.blueChip}` }} className="text-xs sm:text-sm">
-      <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 sm:px-6 py-2">
+      {/* Two explicit stacked rows — deliberately NOT one wrapping flex row, so
+          the utilities can never ride up beside the ministry line at wide widths */}
+      <div className="max-w-7xl mx-auto flex flex-col gap-y-2 px-4 sm:px-6 py-2">
+        {/* Row 1 — government identity, left aligned */}
         <div className="flex items-center gap-2">
           <AshokaEmblemMark />
           <span className="hidden sm:inline">भारत सरकार / Government of India</span>
           <span className="hidden lg:inline opacity-80">— सामाजिक न्याय और अधिकारिता मंत्रालय / Ministry of Social Justice and Empowerment</span>
         </div>
-        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-          <a href="#main" className="underline decoration-dotted hidden sm:inline">{t("skipToMain")}</a>
-          <button onClick={() => setTextSize((s) => (s + 1) % 3)} className="underline decoration-dotted" aria-label="Change text size">
-            A{textSize === 1 ? "+" : textSize === 2 ? "++" : ""}
-          </button>
-          <LowBandwidthToggle lowBandwidth={lowBandwidth} setLowBandwidth={setLowBandwidth} />
-          <a href="tel:14566" className="underline decoration-dotted hidden sm:inline">NHAA 14566</a>
-          <span className="hidden sm:inline-block self-stretch opacity-30" style={{ width: 1, backgroundColor: T.white }} />
-          <LanguageSelector lang={lang} setLang={setLang} compact light />
-          <QuickExitButton t={t} compact />
+
+        {/* Row 2 — accessibility utilities left, language + quick exit pinned right */}
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            <a href="#main" className="underline decoration-dotted hidden sm:inline">{t("skipToMain")}</a>
+            <button onClick={() => setTextSize((s) => (s + 1) % 3)} className="underline decoration-dotted" aria-label="Change text size">
+              A{textSize === 1 ? "+" : textSize === 2 ? "++" : ""}
+            </button>
+            <LowBandwidthToggle lowBandwidth={lowBandwidth} setLowBandwidth={setLowBandwidth} />
+            <a href="tel:14566" className="underline decoration-dotted hidden sm:inline">NHAA 14566</a>
+          </div>
+          {/* tight in the far right corner */}
+          <div className="flex items-center gap-2 ml-auto shrink-0">
+            <span className="hidden sm:inline-block self-stretch opacity-30" style={{ width: 1, backgroundColor: T.white }} />
+            <LanguageSelector lang={lang} setLang={setLang} compact light />
+            <QuickExitButton t={t} compact />
+          </div>
         </div>
       </div>
     </div>
@@ -964,14 +1011,14 @@ function HeroScene({ reducedMotion }) {
         style={{ background: `linear-gradient(180deg, ${T.lavender} 0%, #F3D8C8 55%, ${T.amberBg} 100%)` }}
       />
 
-      {/* Chakra watermark, right-hand side. Sized generously and allowed to bleed
-          past the right edge — the hero's overflow-hidden clips it, so it can
-          never produce a horizontal scrollbar. `meet` scaling keeps the whole
-          circle inside the hero vertically at every width. */}
+      {/* Chakra watermark, sitting in the right half of the hero. Inset from the
+          right edge and capped in both axes so the whole circle — and its outer
+          ripple — stays inside the frame with breathing room on every side, at
+          any width. `meet` scaling centres it within that box. */}
       <div
         aria-hidden="true"
         className="hidden md:block absolute pointer-events-none"
-        style={{ top: "50%", right: "-10%", transform: "translateY(-50%)", width: "min(60%, 660px)", height: "min(125%, 660px)" }}
+        style={{ top: "50%", right: "2.5%", transform: "translateY(-50%)", width: "min(58%, 720px)", height: "min(114%, 720px)" }}
       >
         <svg
           ref={svgRef}
@@ -1455,7 +1502,7 @@ function Hero({ t, lang, reducedMotion, lowBandwidth, onGetHelp, onTrack }) {
       />
 
       <div className="relative h-full max-w-7xl mx-auto px-4 sm:px-6 flex items-center">
-        <div className="max-w-xl py-10">
+        <div className="max-w-xl py-10 text-left">
           <p className="font-semibold mb-3 text-sm" style={{ color: "#BFEAE0", fontFamily: FONT_STACK }}>National Helpline Against Atrocities</p>
           <h1
             className={cx("font-bold leading-tight mb-4", lowBandwidth ? "text-5xl sm:text-6xl" : "text-4xl sm:text-5xl")}
@@ -3336,6 +3383,7 @@ function useConnectivity() {
 }
 
 export default function RAAHATApp() {
+  useFullWidthLayout();
   const reducedMotion = usePrefersReducedMotion();
   const { lang, setLang, t } = useLang();
 
