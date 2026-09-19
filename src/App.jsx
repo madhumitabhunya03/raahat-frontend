@@ -233,7 +233,7 @@ const ALL_DISTRICTS = Object.values(STATE_DISTRICTS).flat();
 const SUPPORT_LANGUAGES = ["Hindi", "English", "Bengali", "Tamil", "Telugu", "Marathi", "Kannada"];
 
 const COUNSELLORS = [
-  { id: "C1", name: "Dr. Anjali Verma", languages: ["Hindi", "English"], modes: ["Call", "Video"], availability: "Available now", specialNeed: "Trauma-informed", district: "Patna" },
+  { id: "C1", name: "Dr. Anjali Verma", languages: ["Hindi", "English"], modes: ["Call", "Video", "Chat"], availability: "Available now", specialNeed: "Trauma-informed", district: "Patna" },
   { id: "C2", name: "Fr. Thomas Kutty", languages: ["English", "Tamil"], modes: ["Call", "Chat"], availability: "Available today, 4–7 PM", specialNeed: "Grief & loss", district: "Chennai" },
   { id: "C3", name: "Ms. Priya Raman", languages: ["Tamil", "English"], modes: ["Video", "Chat"], availability: "Available now", specialNeed: "Survivor support", district: "Madurai" },
   { id: "C4", name: "Dr. Sunita Oraon", languages: ["Hindi", "Bengali"], modes: ["Call"], availability: "Available tomorrow, 10 AM", specialNeed: "Adolescent support", district: "Malda" },
@@ -2205,7 +2205,7 @@ function Recommendations({ t, assessment, onPick }) {
 }
 
 /* Screen: counsellor discovery ------------------------------------------ */
-function CounsellorDiscovery({ t, onContinue }) {
+function CounsellorDiscovery({ t, onContinue, onChat }) {
   const [filters, setFilters] = useState({ language: "", mode: "", district: "" });
   const [saved, setSaved] = useState([]);
   // API: GET /v1/counsellors/search?language=&mode=&district= -> { counsellors: [...] }
@@ -2247,6 +2247,16 @@ function CounsellorDiscovery({ t, onContinue }) {
             <div className="flex flex-wrap gap-2 mt-4">
               <button className="rounded-xl px-3 py-2 text-sm font-semibold" style={{ backgroundColor: T.lavender, color: T.indigo, fontFamily: FONT_STACK }}>View profile</button>
               <button className="rounded-xl px-3 py-2 text-sm font-semibold" style={{ backgroundColor: T.teal, color: T.white, fontFamily: FONT_STACK }}>Request callback</button>
+              {/* chat is only offered where the counsellor actually supports it */}
+              {c.modes.includes("Chat") && (
+                <button
+                  onClick={() => onChat && onChat(c)}
+                  className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-semibold"
+                  style={{ backgroundColor: T.indigo, color: T.white, fontFamily: FONT_STACK }}
+                >
+                  <MessageCircle size={15} /> Chat now
+                </button>
+              )}
               <button
                 onClick={() => setSaved((s) => (s.includes(c.id) ? s.filter((id) => id !== c.id) : [...s, c.id]))}
                 className="rounded-xl px-3 py-2 text-sm font-semibold"
@@ -2259,6 +2269,228 @@ function CounsellorDiscovery({ t, onContinue }) {
         ))}
       </div>
       <PrimaryButton full icon={ArrowRight} onClick={onContinue}>Continue</PrimaryButton>
+    </div>
+  );
+}
+
+/* Screen: counsellor chat ------------------------------------------------- */
+/* A real counsellor conversation, not a bot. The scripted thread below is    */
+/* demo content so the flow can be screen-recorded end to end without anyone  */
+/* typing; in production the messages stream from the chat service.           */
+/* API: GET  /v1/chat/{sessionId}/messages -> { messages: [{ id, from, text, sentAt }] } */
+/* API: POST /v1/chat/{sessionId}/message  -> { messageId, sentAt } */
+/* Built per counsellor so the greeting and the referral name the person the
+   citizen actually opened the chat with, rather than hard-coding one name. */
+const buildChatScript = (c) => [
+  { from: "counsellor", text: `Namaste. I'm ${c.name}, a trained counsellor with the helpline. I've read the summary of what you shared. Take your time — there's no hurry here.` },
+  { from: "citizen", text: "I didn't know who else to talk to." },
+  { from: "counsellor", text: "You did the right thing by reaching out. Everything you say here stays confidential." },
+  { from: "citizen", text: "They have been threatening my family since we filed the complaint. Nobody in the village speaks to us now." },
+  { from: "counsellor", text: "That sounds frightening and very isolating. What's happening to you is not your fault, and it is against the law." },
+  { from: "citizen", text: "I can't sleep. I keep thinking something will happen to my children." },
+  { from: "counsellor", text: "That fear makes complete sense given what you're living with. Are you and your children safe where you are right now, tonight?" },
+  { from: "citizen", text: "For now, yes. But I am scared." },
+  { from: "counsellor", text: `Thank you for telling me. I'm going to stay with you on this. With your permission, I'd like to ask the district officer to arrange a safety check and connect you with the Sakhi Centre in ${c.district} for support.` },
+  { from: "citizen", text: "Yes, please." },
+  { from: "counsellor", text: "Done — I've flagged this for a district officer. Someone will contact you within 24 hours. I'm also here if you want to talk again before then. You are not alone in this." },
+  { from: "system", text: "Counsellor has requested a district officer follow-up. Case RAH-2026-001248 updated." },
+];
+
+/* Rotated so repeated manual sends don't return an identical line */
+const CHAT_GENERIC_REPLIES = [
+  "Thank you for telling me that. Take whatever time you need — I'm here with you.",
+  "I hear you. That's a lot to carry, and you don't have to carry it alone.",
+  "That makes sense. Would you like me to note this for the officer handling your case?",
+];
+
+function TypingDots() {
+  return (
+    <span className="inline-flex items-center rounded-2xl px-4 py-3" style={{ backgroundColor: T.white, border: `1px solid ${T.line}` }}>
+      <svg width="34" height="10" role="img" aria-label="Counsellor is typing">
+        {[0, 1, 2].map((i) => (
+          <circle key={i} cx={5 + i * 12} cy="5" r="3.5" fill="#8F88BB">
+            <animate attributeName="opacity" values="0.3;1;0.3" dur="1.2s" begin={`${i * 0.2}s`} repeatCount="indefinite" />
+            <animate attributeName="cy" values="5;3;5" dur="1.2s" begin={`${i * 0.2}s`} repeatCount="indefinite" />
+          </circle>
+        ))}
+      </svg>
+    </span>
+  );
+}
+
+function CounsellorChat({ t, counsellor, onBack, onEndChat }) {
+  const [revealed, setRevealed] = useState(0); // scripted messages shown so far
+  const [playing, setPlaying] = useState(false);
+  const [typing, setTyping] = useState(false);
+  const [extra, setExtra] = useState([]); // messages typed by the citizen + replies
+  const [draft, setDraft] = useState("");
+  const replyCountRef = useRef(0);
+  const endRef = useRef(null);
+
+  const script = useMemo(() => buildChatScript(counsellor), [counsellor]);
+  const messages = [...script.slice(0, revealed), ...extra];
+
+  // keep the newest message in view as the thread grows
+  useEffect(() => {
+    if (endRef.current && endRef.current.scrollIntoView) {
+      endRef.current.scrollIntoView({ behavior: "smooth", block: "end" });
+    }
+  }, [revealed, extra.length, typing]);
+
+  // demo playback: reveal one message at a time, with a typing pause before
+  // each counsellor line so it records like a real conversation
+  useEffect(() => {
+    if (!playing) return;
+    if (revealed >= script.length) {
+      setPlaying(false);
+      setTyping(false);
+      return;
+    }
+    const next = script[revealed];
+    let revealTimer;
+    if (next.from === "counsellor") {
+      setTyping(true);
+      revealTimer = setTimeout(() => {
+        setTyping(false);
+        setRevealed((n) => n + 1);
+      }, 1700);
+    } else {
+      revealTimer = setTimeout(() => setRevealed((n) => n + 1), next.from === "system" ? 1200 : 1600);
+    }
+    return () => clearTimeout(revealTimer);
+  }, [playing, revealed, script]);
+
+  // a manual message pauses the scripted demo so the two don't interleave
+  const send = () => {
+    const text = draft.trim();
+    if (!text) return;
+    setPlaying(false);
+    setDraft("");
+    setExtra((e) => [...e, { from: "citizen", text }]);
+    // API: POST /v1/chat/{sessionId}/message -> { messageId, sentAt }
+    setTyping(true);
+    setTimeout(() => {
+      const reply = CHAT_GENERIC_REPLIES[replyCountRef.current % CHAT_GENERIC_REPLIES.length];
+      replyCountRef.current += 1;
+      setTyping(false);
+      setExtra((e) => [...e, { from: "counsellor", text: reply }]);
+    }, 1800);
+  };
+
+  const restart = () => {
+    setRevealed(0);
+    setExtra([]);
+    setTyping(false);
+    setPlaying(true);
+  };
+
+  return (
+    <div className="flex flex-col" style={{ minHeight: "60vh" }}>
+      {/* header — who you're talking to, and that they're a person */}
+      <div className="rounded-2xl p-4 mb-3" style={{ backgroundColor: T.white, border: `1px solid ${T.line}` }}>
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-start gap-3 min-w-0">
+            <button onClick={onBack} aria-label="Back to counsellor list" className="rounded-full p-2 shrink-0" style={{ backgroundColor: T.lavender }}>
+              <ArrowLeft size={18} color={T.indigo} />
+            </button>
+            <div className="min-w-0">
+              <h1 className="font-bold truncate" style={{ color: T.indigo, fontFamily: FONT_STACK, fontSize: 18 }}>{counsellor.name}</h1>
+              <p className="text-sm" style={{ color: "#5B5482", fontFamily: FONT_STACK }}>{counsellor.languages.join(", ")}</p>
+              <p className="inline-flex items-center gap-1.5 text-sm font-semibold mt-0.5" style={{ color: T.greenChip, fontFamily: FONT_STACK }}>
+                <span className="rounded-full" style={{ width: 8, height: 8, backgroundColor: T.greenChip, display: "inline-block" }} />
+                Online
+              </p>
+            </div>
+          </div>
+          <button onClick={onEndChat} className="text-sm font-semibold underline shrink-0" style={{ color: T.teal, fontFamily: FONT_STACK }}>End chat</button>
+        </div>
+      </div>
+
+      {/* persistent reassurance — a human, not a bot */}
+      <div className="rounded-xl px-3 py-2 mb-3 flex items-center gap-2" style={{ backgroundColor: T.tealBg }}>
+        <UserCheck size={16} color={T.tealDark} className="shrink-0" />
+        <p className="text-sm font-semibold" style={{ color: T.tealDark, fontFamily: FONT_STACK }}>
+          You are speaking with a trained human counsellor, not an automated system.
+        </p>
+      </div>
+
+      {/* message thread */}
+      <div
+        className="flex-1 rounded-2xl p-4 mb-3 overflow-y-auto flex flex-col gap-3"
+        style={{ backgroundColor: T.bg, border: `1px solid ${T.line}`, maxHeight: "48vh", minHeight: 240 }}
+        aria-live="polite"
+      >
+        {messages.length === 0 && !typing && (
+          <p className="text-sm text-center py-6" style={{ color: "#8F88BB", fontFamily: FONT_STACK }}>
+            Say hello when you're ready, or play the demo conversation.
+          </p>
+        )}
+        {messages.map((m, i) =>
+          m.from === "system" ? (
+            <div key={i} className="self-center text-center rounded-xl px-3 py-2 max-w-[90%]" style={{ backgroundColor: T.amberBg }}>
+              <p className="text-xs font-semibold" style={{ color: T.amber, fontFamily: FONT_STACK }}>{m.text}</p>
+            </div>
+          ) : (
+            <div
+              key={i}
+              className={cx("rounded-2xl px-4 py-3 max-w-[85%]", m.from === "citizen" ? "self-end" : "self-start")}
+              style={
+                m.from === "citizen"
+                  ? { backgroundColor: T.lavender }
+                  : { backgroundColor: T.white, border: `1px solid ${T.line}` }
+              }
+            >
+              <p className="text-sm" style={{ color: T.indigo, fontFamily: FONT_STACK, lineHeight: 1.5 }}>{m.text}</p>
+            </div>
+          )
+        )}
+        {typing && <span className="self-start"><TypingDots /></span>}
+        <div ref={endRef} />
+      </div>
+
+      {/* demo control — lets the whole conversation be recorded hands-free */}
+      <div className="flex flex-wrap items-center gap-2 mb-3">
+        <button
+          onClick={() => (revealed >= script.length ? restart() : setPlaying((p) => !p))}
+          className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-semibold"
+          style={{ backgroundColor: T.lavender, color: T.indigo, fontFamily: FONT_STACK }}
+        >
+          {playing ? <PauseCircle size={16} /> : <PlayCircle size={16} />}
+          {revealed >= script.length ? "Replay demo conversation" : playing ? "Pause demo" : "Play demo conversation"}
+        </button>
+        {(revealed > 0 || extra.length > 0) && (
+          <button
+            onClick={() => { setPlaying(false); setTyping(false); setRevealed(0); setExtra([]); }}
+            className="rounded-xl px-3 py-2 text-sm font-semibold"
+            style={{ backgroundColor: "#F3F1EA", color: T.indigo, fontFamily: FONT_STACK }}
+          >
+            Clear
+          </button>
+        )}
+      </div>
+
+      {/* composer */}
+      <div className="flex items-end gap-2">
+        <textarea
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
+          rows={1}
+          placeholder="Type your message…"
+          aria-label="Type your message"
+          className="flex-1 rounded-2xl p-3 resize-none focus:outline-none focus-visible:ring-4"
+          style={{ border: `1px solid ${T.line}`, fontFamily: FONT_STACK, color: T.indigo, ringColor: T.teal, minHeight: 48 }}
+        />
+        <button
+          onClick={send}
+          disabled={!draft.trim()}
+          aria-label="Send message"
+          className="rounded-2xl p-3 shrink-0 focus:outline-none focus-visible:ring-4"
+          style={{ backgroundColor: draft.trim() ? T.teal : T.lavender, color: draft.trim() ? T.white : "#8F88BB", ringColor: T.teal, minHeight: 48, minWidth: 48 }}
+        >
+          <Send size={20} />
+        </button>
+      </div>
     </div>
   );
 }
@@ -3339,6 +3571,7 @@ const SCREENS = {
   GUIDED: "GUIDED",
   RECS: "RECS",
   COUNSELLORS: "COUNSELLORS",
+  COUNSELLOR_CHAT: "COUNSELLOR_CHAT",
   MEDICAL: "MEDICAL",
   LEGAL: "LEGAL",
   SAKHI: "SAKHI",
@@ -3425,6 +3658,7 @@ export default function RAAHATApp() {
   const [lastCaseId, setLastCaseId] = useState(null);
   const [pickedRec, setPickedRec] = useState(null);
   const [signedInMobile, setSignedInMobile] = useState(null);
+  const [chatCounsellor, setChatCounsellor] = useState(null);
 
   // connectivity (real navigator.onLine + a manual "simulate offline" toggle)
   const { isOffline, setForcedOffline } = useConnectivity();
@@ -3671,7 +3905,24 @@ export default function RAAHATApp() {
       />
     );
   } else if (screen === SCREENS.COUNSELLORS) {
-    body = <CounsellorDiscovery t={t} onContinue={() => setScreen(SCREENS.LOCATION)} />;
+    body = (
+      <CounsellorDiscovery
+        t={t}
+        onContinue={() => setScreen(SCREENS.LOCATION)}
+        onChat={(c) => { setChatCounsellor(c); setScreen(SCREENS.COUNSELLOR_CHAT); }}
+      />
+    );
+  } else if (screen === SCREENS.COUNSELLOR_CHAT) {
+    // falls back to the first chat-capable counsellor if opened directly
+    const chatWith = chatCounsellor || COUNSELLORS.find((c) => c.modes.includes("Chat"));
+    body = (
+      <CounsellorChat
+        t={t}
+        counsellor={chatWith}
+        onBack={() => setScreen(SCREENS.COUNSELLORS)}
+        onEndChat={() => setScreen(SCREENS.COUNSELLORS)}
+      />
+    );
   } else if (screen === SCREENS.MEDICAL) {
     body = (
       <SupportCentreListing
